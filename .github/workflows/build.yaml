@@ -1,0 +1,66 @@
+name: build
+on:
+  workflow_dispatch:
+    inputs:
+      skip_test:
+        type: boolean
+        description: skil test 
+        required: false
+        default: false
+      do_release:
+        type: boolean
+        description: do release 
+        required: true
+  pull_request:
+    branches:
+    - master
+    - release-*
+    paths-ignore:
+    - 'docs/**'
+    - '**.md'
+    - '.github/VERSION'
+  push:
+    branches:
+    - master
+    - release-*
+    paths-ignore:
+    - 'docs/**'
+    - '**.md'
+concurrency:
+  group: "${{ github.workflow }}-${{ github.ref }}"
+  cancel-in-progress: true
+
+env:
+  BUILD_ENV: 'github'
+jobs:
+  build:
+    name: Build
+    runs-on: ubuntu-22.04
+    permissions:
+      contents: write
+      packages: write
+    env:
+      PLATFORMS: linux/amd64,linux/arm,linux/arm64
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@29109295f81e9208d7d86ff1c6c12d2833863392 # v3.6.0
+      - name: Set up Docker Buildx
+        id: buildx
+        uses: docker/setup-buildx-action@b5ca514318bd6ebac0fb2aedd5d36ec1b5c232a2 # v3.10.0
+        with:
+          version: latest
+          platforms: ${{ env.PLATFORMS }}
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3.4.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: build-image
+        run: |
+          echo "${{ github.actor }}"
+          docker buildx build --platform=${{ env.PLATFORMS }} --push -t ghcr.io/${{ github.actor }}/static-build:latest .
+
