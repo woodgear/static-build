@@ -1,20 +1,11 @@
 name: build
 on:
   workflow_dispatch:
-    inputs:
-      skip_test:
-        type: boolean
-        description: skil test 
-        required: false
-        default: false
-      do_release:
-        type: boolean
-        description: do release 
-        required: true
   pull_request:
     branches:
     - master
     - release-*
+    - feat/*
     paths-ignore:
     - 'docs/**'
     - '**.md'
@@ -62,5 +53,14 @@ jobs:
       - name: build-image
         run: |
           echo "${{ github.actor }}"
-          docker buildx build --platform=${{ env.PLATFORMS }} --push -t ghcr.io/${{ github.actor }}/static-build:latest .
+          TIME_TAG=$(date +'%Y%m%d%H%M%S')
+          if [ "${GITHUB_REF##*/}" = "master" ]; then
+            TAG="latest,$TIME_TAG"
+          else
+            BRANCH=$(echo "${GITHUB_REF##*/}" | tr '/' '-')
+            TAG="${BRANCH}-${TIME_TAG}"
+          fi
+          for t in $(echo $TAG | tr ',' '\n'); do
+            docker buildx build --platform=${{ env.PLATFORMS }} --push -t ghcr.io/${{ github.actor }}/static-build:$t .
+          done
 

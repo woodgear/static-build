@@ -1,24 +1,27 @@
-FROM alpine:3.18.4 AS fetch
-RUN apk add --no-cache curl wget jq bash
-WORKDIR /build
-COPY ./fetch.sh /build/fetch.sh
-RUN bash -c 'mkdir ./tools;source ./fetch.sh;static-build-fetch';ls -alh ./tools
+# FROM alpine:3.18.4 AS fetch
+# RUN apk add --no-cache curl wget jq bash
+# WORKDIR /build
+# COPY ./fetch.sh /build/fetch.sh
+# RUN bash -c 'mkdir ./tools;source ./fetch.sh;static-build-fetch';ls -alh ./tools
 
-FROM golang:1.25rc2-bullseye AS go-wrk
-RUN mkdir /go-wrk; cd /go-wrk;git clone https://github.com/tsliwowicz/go-wrk.git;cd /go-wrk; CGO_ENABLED=0 go build -o go-wrk ;pwd;ls;date;
+# FROM golang:1.25rc2-bullseye AS go-wrk
+# RUN mkdir /go-wrk; cd /go-wrk;git clone https://github.com/tsliwowicz/go-wrk.git;cd /go-wrk; CGO_ENABLED=0 go build -o go-wrk ;pwd;ls;date;
 
-FROM wesleydeanflexion/busybox-jq AS jq
+# FROM wesleydeanflexion/busybox-jq AS jq
 
-FROM grafana/xk6 AS xk6
-RUN xk6 version
-RUN xk6 build --with github.com/grafana/xk6-dashboard@latest
+# FROM grafana/xk6 AS xk6
+# RUN xk6 version
+# RUN xk6 build --with github.com/grafana/xk6-dashboard@latest
 
-
+FROM alpine:3.18.4 AS stress-ng
+RUN apk add git build-base eigen-dev jpeg-dev judy-dev keyutils-dev kmod-dev libaio-dev libatomic libattr libbsd-dev libcap-dev libmd-dev libseccomp-dev lksctp-tools-dev mesa-dev mpfr-dev xxhash-dev zlib-dev
+RUN git clone https://github.com/ColinIanKing/stress-ng.git && pwd && ls && cd /stress-ng && STATIC=1 make
 
 FROM alpine:3.18.4
 
 WORKDIR /tools
-COPY --from=jq /bin/jq /tools/jq
-COPY --from=xk6 /xk6/k6 /tools/k6
-COPY --from=fetch /build/tools /tools/
-COPY --from=go-wrk /go-wrk/go-wrk /tools/go-wrk
+# COPY --from=jq /bin/jq /tools/jq
+# COPY --from=xk6 /xk6/k6 /tools/k6
+# COPY --from=fetch /build/tools /tools/
+# COPY --from=go-wrk /go-wrk/go-wrk /tools/go-wrk
+COPY --from=stress-ng /stress-ng/stress-ng /tools/stress-ng
